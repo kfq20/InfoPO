@@ -1,0 +1,59 @@
+hydra:
+  searchpath:
+    - file://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+algorithm:
+  adv_estimator: info_grpo
+  gamma: 0.8
+  action_credit_ratio: 0.8
+  use_kl_in_reward: False
+  
+  # Asymmetric Clipping (RAGEN extension): Learn more aggressively from high rewards
+  # clip_ratio_low: 0.2      # Standard lower bound (default: 0.2)
+  # clip_ratio_high: 0.28    # Higher upper bound (default: 0.2, set higher for asymmetric clipping)
+  
+  # Info-GRPO specific parameters
+  use_intrinsic_reward: True
+  intrinsic_reward:
+    observation_placeholder: "No information found."
+    collect_mask_sensitivity_stats: False
+    intrinsic_kl_batch_size: 4     # Batch size for parallel KL computation (default: 32)
+                                     # CRITICAL: Set to 1 when max_response_length is very large (24K+) to avoid OOM
+    intrinsic_weight: 0.5           # β_0 (initial weight for intrinsic rewards)
+    normalize_intrinsic: True       # Whether to normalize intrinsic rewards with GRPO group baseline
+    use_intrinsic_only: False      # If True, use only intrinsic rewards (ablation); if False, combine with outcome rewards (default)
+    intrinsic_gate_temperature: 0.5  # Temperature for variance-based gating (lower = more sensitive to group variance)
+    advantage_weight_clip: 1.0      # Clip range for advantage-weighted intrinsic rewards
+    advantage_weight_threshold: 0.1 # Threshold for normalizing advantage weights
+    debug: False                    # Debug logging
+    # Ablation: Free Generation vs Teacher Forcing
+    use_free_generation: False      # If True, use free generation (ablation); if False, use teacher forcing (default)
+    generation_config:              # Only used when use_free_generation=True
+      temperature: 1.0              # Sampling temperature (1.0 = no temperature scaling)
+      do_sample: False              # False = greedy, True = sampling
+      eos_token_id: null            # EOS token ID to stop generation (null = use tokenizer default)
+
+# RAGEN Extensions (StarPO-S stabilization mechanisms)
+# These extensions can be enabled to improve training stability and sample efficiency
+ragen:
+  rollout_filter:
+    enable: False              # Enable uncertainty-based rollout filtering
+    ratio: 0.25                # Fraction of groups to keep (e.g., 0.25 keeps top 25% by variance)
+    filter_type: largest       # "largest" (keep high variance) or "smallest" (keep low variance)
+    metric: reward_variance    # "reward_variance" or "entropy_variance"
+    # group_size is automatically set from actor_rollout_ref.rollout.n
+
+actor_rollout_ref:
+  hybrid_engine: True
+  rollout:
+    name: sglang
+    multi_turn:
+      enable: True
+      max_turns: 16
+      model_name: gpt-4o-mini-2024-07-18
+      turn_level_method: Equalized
+      trajectory_score_method: Sum

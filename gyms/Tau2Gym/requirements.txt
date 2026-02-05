@@ -1,0 +1,5 @@
+gymnasium>=0.29.0
+numpy>=1.24.0
+
+# Note: tau2-bench must be installed separately from source:
+# cd ../../tau2-bench && pip install -e .

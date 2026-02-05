@@ -1,0 +1,114 @@
+hydra:
+  searchpath:
+    - file://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+# Use GRPO with multi-turn interaction for ColBench
+algorithm:
+  adv_estimator: info_grpo
+  gamma: 0.8
+  action_credit_ratio: 0.8
+  use_kl_in_reward: False
+  
+  # Info-GRPO specific parameters
+  use_intrinsic_reward: True
+  intrinsic_reward:
+    observation_placeholder: "No information found."
+    intrinsic_kl_batch_size: 4     # 🆕 Batch size for parallel KL computation (default: 32)
+                                     # Increase to 64/128 for more parallelism, decrease to 8/16 if OOM
+    intrinsic_weight: 0.3           # β_0 (initial weight for intrinsic rewards)
+    intrinsic_gate_temperature: 0.5
+    normalize_intrinsic: True       # Whether to normalize intrinsic rewards with GRPO group baseline
+    use_intrinsic_only: False      # If True, use only intrinsic rewards (ablation); if False, combine with outcome rewards (default)
+    debug: False                    # 🔧 Changed to False to reduce log spam
+    # Ablation: Free Generation vs Teacher Forcing
+    use_free_generation: False      # If True, use free generation (ablation); if False, use teacher forcing (default)
+    generation_config:              # Only used when use_free_generation=True
+      temperature: 1.0              # Sampling temperature (1.0 = no temperature scaling)
+      do_sample: False              # False = greedy, True = sampling
+      eos_token_id: null            # EOS token ID to stop generation (null = use tokenizer default)
+
+# Dataset configuration
+data:
+  train_batch_size: 128
+  max_prompt_length: 2048
+  max_response_length: 1024  # Match sweet_rl's agent max_tokens=1024
+  filter_overlong_prompts: True
+  truncation: 'error'
+  return_raw_chat: True
+  # Will be populated by training script or overridden via command line
+  train_files: null
+  val_files: null
+
+# Actor, Rollout, and Reference Model Configuration
+actor_rollout_ref:
+  hybrid_engine: True
+
+  model:
+    path: /path/to/your/model  # Override via command line
+    use_remove_padding: True
+    enable_gradient_checkpointing: True
+    enable_activation_offload: True
+
+  actor:
+    ppo_mini_batch_size: 16
+    ppo_micro_batch_size_per_gpu: 4
+    use_kl_loss: False
+    kl_loss_coef: 0.001
+    kl_loss_type: low_var_kl
+    entropy_coeff: 0
+    fsdp_config:
+      param_offload: False
+      optimizer_offload: False
+    optim:
+      lr: 1e-6
+
+  rollout:
+    name: sglang
+    mode: sync
+    log_prob_micro_batch_size_per_gpu: 4
+    tensor_model_parallel_size: 2
+    gpu_memory_utilization: 0.50
+    max_model_len: 16384  # Total sequence length (prompt + response), allows for multi-turn conversations
+    n: 4  # Number of rollouts per prompt
+    training_temperature: 0.6  # Training temperature (auto-detected for Qwen3, can override)
+
+    # Multi-turn interaction configuration for ColBench
+    multi_turn:
+      enable: True
+      max_turns: 10  # ColBench typically uses 10 turns
+      model_name: gpt-4o-mini  # Model for human simulation (can override via env var)
+      turn_level_method: Equalized
+      trajectory_score_method: Sum
+      tool_config_path: examples/colbench/config/tool_config/colbench_tool_config.yaml
+
+  ref:
+    fsdp_config:
+      param_offload: True
+
+# RAGEN Extensions (StarPO-S stabilization mechanisms)
+# These extensions can be enabled to improve training stability and sample efficiency
+ragen:
+  rollout_filter:
+    enable: False              # Enable uncertainty-based rollout filtering
+    ratio: 0.25                # Fraction of groups to keep (e.g., 0.25 keeps top 25% by variance)
+    filter_type: largest       # "largest" (keep high variance) or "smallest" (keep low variance)
+    metric: reward_variance    # "reward_variance" or "entropy_variance"
+    # group_size is automatically set from actor_rollout_ref.rollout.n
+
+# Trainer configuration
+trainer:
+  critic_warmup: 0
+  logger: ['console', 'wandb']
+  project_name: 'ColBench-UserRL'
+  experiment_name: 'colbench_code_training'
+  n_gpus_per_node: 8
+  nnodes: 1
+  save_freq: 5
+  test_freq: 5
+  val_before_train: True
+  total_epochs: 20
+  default_local_dir: outputs/colbench_training
