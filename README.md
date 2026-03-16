@@ -1,14 +1,19 @@
 <div align="center">
 
 # InfoPO: Information-Driven Policy Optimization for User-Centric Agents
-
-[![arXiv](https://img.shields.io/badge/arXiv-2502.xxxxx-b31b1b.svg)](https://arxiv.org/abs/2502.xxxxx)
+[![arXiv](https://img.shields.io/badge/arXiv-2603.00656-b31b1b.svg)](https://arxiv.org/abs/2603.00656)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE.txt)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/downloads/)
 
 </div>
 
 This repository is the official implementation of **InfoPO**, an information-driven reinforcement learning algorithm for training user-centric agents in multi-turn interactive scenarios.
+
+## News
+
+- 🔥 **2026/03**: Our paper was accepted to ICLR 2026 Workshop on Lifelong Agents！
+
+---
 
 <p align="center">
   <img src="assets/intro_wide.png" alt="InfoPO Motivation" width="100%">
@@ -149,11 +154,11 @@ Training progress is logged via:
 If you find this work useful, please cite our paper:
 
 ```bibtex
-@article{infopo2025,
+@article{kong2026infopo,
   title={InfoPO: Information-Driven Policy Optimization for User-Centric Agents},
-  author={},
-  journal={arXiv preprint arXiv:2502.xxxxx},
-  year={2025}
+  author={Kong, Fanqi and Zhang, Jiayi and Deng, Mingyi and Wu, Chenglin and Luo, Yuyu and Liu, Bang},
+  journal={arXiv preprint arXiv:2603.00656},
+  year={2026}
 }
 ```
 
